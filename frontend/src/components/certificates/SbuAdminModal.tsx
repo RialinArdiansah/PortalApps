@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAppSelector, useAppDispatch } from '@/app/hooks';
 import { fetchCertificates } from '@/features/certificates/certificatesSlice';
 import { Modal } from '@/components/common/Modal';
@@ -55,6 +55,13 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
     const [tempKualifikasi, setTempKualifikasi] = useState<BiayaData[]>([]);
     const [tempBiayaSetor, setTempBiayaSetor] = useState<BiayaData[]>([]);
     const [tempBiayaLainnya, setTempBiayaLainnya] = useState<BiayaData[]>([]);
+
+    // Per-asosiasi cache for konstruksi mode: preserves edits when switching between P3SM/GAPEKNAS
+    const asosiasiCache = useRef<Record<string, { kual: BiayaData[]; bs: BiayaData[]; bl: BiayaData[] }>>({
+        p3sm: { kual: [], bs: [], bl: [] },
+        gapeknas: { kual: [], bs: [], bl: [] },
+    });
+    const prevAsosiasiKey = useRef<string>('');
 
     const [selectedSubId, setSelectedSubId] = useState('');
     const [selectedKlasifikasiId, setSelectedKlasifikasiId] = useState('');
@@ -116,18 +123,26 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
         const { subs, klas, kual, bs, bl } = getDataSources();
 
         if (sbuType === 'konstruksi') {
+            // Initialize the per-asosiasi cache from Redux store
+            asosiasiCache.current = {
+                p3sm: {
+                    kual: deepClone(certs.p3smKualifikasiData),
+                    bs: deepClone(certs.p3smBiayaSetorData),
+                    bl: deepClone(certs.p3smBiayaLainnyaData),
+                },
+                gapeknas: {
+                    kual: deepClone(certs.gapeknasKualifikasiData),
+                    bs: deepClone(certs.gapeknasBiayaSetorData),
+                    bl: deepClone(certs.gapeknasBiayaLainnyaData),
+                },
+            };
             const firstSub = subs[0];
+            const firstKey = firstSub?.name.toUpperCase().includes('GAPEKNAS') ? 'gapeknas' : 'p3sm';
+            prevAsosiasiKey.current = firstKey;
             setSelectedSubId(firstSub?.id || '');
-            if (firstSub) {
-                const isGapeknas = firstSub.name.toUpperCase().includes('GAPEKNAS');
-                setTempKualifikasi(deepClone(isGapeknas ? certs.gapeknasKualifikasiData : certs.p3smKualifikasiData));
-                setTempBiayaSetor(deepClone(isGapeknas ? certs.gapeknasBiayaSetorData : certs.p3smBiayaSetorData));
-                setTempBiayaLainnya(deepClone(isGapeknas ? certs.gapeknasBiayaLainnyaData : certs.p3smBiayaLainnyaData));
-            } else {
-                setTempKualifikasi([]);
-                setTempBiayaSetor([]);
-                setTempBiayaLainnya([]);
-            }
+            setTempKualifikasi(deepClone(asosiasiCache.current[firstKey].kual));
+            setTempBiayaSetor(deepClone(asosiasiCache.current[firstKey].bs));
+            setTempBiayaLainnya(deepClone(asosiasiCache.current[firstKey].bl));
         } else {
             setTempKualifikasi(kual);
             setTempBiayaSetor(bs);
@@ -146,14 +161,28 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
         setToast('');
     }, [isOpen, sbuType]);
 
+    // When switching asosiasi in konstruksi mode: save current edits to cache, load other asosiasi from cache
     useEffect(() => {
         if (sbuType !== 'konstruksi' || !selectedSubId) return;
         const sub = tempSubs.find((s) => s.id === selectedSubId);
         if (!sub) return;
-        const isGapeknas = sub.name.toUpperCase().includes('GAPEKNAS');
-        setTempKualifikasi(deepClone(isGapeknas ? certs.gapeknasKualifikasiData : certs.p3smKualifikasiData));
-        setTempBiayaSetor(deepClone(isGapeknas ? certs.gapeknasBiayaSetorData : certs.p3smBiayaSetorData));
-        setTempBiayaLainnya(deepClone(isGapeknas ? certs.gapeknasBiayaLainnyaData : certs.p3smBiayaLainnyaData));
+        const newKey = sub.name.toUpperCase().includes('GAPEKNAS') ? 'gapeknas' : 'p3sm';
+
+        // Save current temp data to cache for the PREVIOUS asosiasi (if different)
+        if (prevAsosiasiKey.current && prevAsosiasiKey.current !== newKey) {
+            asosiasiCache.current[prevAsosiasiKey.current] = {
+                kual: deepClone(tempKualifikasi),
+                bs: deepClone(tempBiayaSetor),
+                bl: deepClone(tempBiayaLainnya),
+            };
+        }
+
+        // Load from cache for the NEW asosiasi
+        const cached = asosiasiCache.current[newKey];
+        setTempKualifikasi(deepClone(cached.kual));
+        setTempBiayaSetor(deepClone(cached.bs));
+        setTempBiayaLainnya(deepClone(cached.bl));
+        prevAsosiasiKey.current = newKey;
     }, [selectedSubId, sbuType]);
 
     const selectedKlasifikasi = useMemo(
@@ -270,29 +299,23 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
                 body.sbuData = tempSubs;
                 body.klasifikasiData = tempKlasifikasi;
 
-                // Determine which asosiasi is currently selected
-                const sub = tempSubs.find((s) => s.id === selectedSubId);
-                const isGapeknas = sub?.name.toUpperCase().includes('GAPEKNAS');
+                // Save current temp data to cache for the active asosiasi
+                const currentKey = prevAsosiasiKey.current || 'p3sm';
+                asosiasiCache.current[currentKey] = {
+                    kual: deepClone(tempKualifikasi),
+                    bs: deepClone(tempBiayaSetor),
+                    bl: deepClone(tempBiayaLainnya),
+                };
 
-                // For the SELECTED asosiasi, use the edited temp data
-                // For the OTHER asosiasi, use the original Redux store data to preserve it
-                if (isGapeknas) {
-                    body.gapeknasKualifikasiData = tempKualifikasi;
-                    body.gapeknasBiayaSetorData = tempBiayaSetor;
-                    body.gapeknasBiayaLainnyaData = tempBiayaLainnya;
-                    // Preserve P3SM data from store
-                    body.p3smKualifikasiData = certs.p3smKualifikasiData;
-                    body.p3smBiayaSetorData = certs.p3smBiayaSetorData;
-                    body.p3smBiayaLainnyaData = certs.p3smBiayaLainnyaData;
-                } else {
-                    body.p3smKualifikasiData = tempKualifikasi;
-                    body.p3smBiayaSetorData = tempBiayaSetor;
-                    body.p3smBiayaLainnyaData = tempBiayaLainnya;
-                    // Preserve GAPEKNAS data from store
-                    body.gapeknasKualifikasiData = certs.gapeknasKualifikasiData;
-                    body.gapeknasBiayaSetorData = certs.gapeknasBiayaSetorData;
-                    body.gapeknasBiayaLainnyaData = certs.gapeknasBiayaLainnyaData;
-                }
+                // Send BOTH asosiasi data from cache (includes all edits)
+                const p = asosiasiCache.current.p3sm;
+                const g = asosiasiCache.current.gapeknas;
+                body.p3smKualifikasiData = p.kual;
+                body.p3smBiayaSetorData = p.bs;
+                body.p3smBiayaLainnyaData = p.bl;
+                body.gapeknasKualifikasiData = g.kual;
+                body.gapeknasBiayaSetorData = g.bs;
+                body.gapeknasBiayaLainnyaData = g.bl;
             } else if (sbuType === 'konsultan') {
                 body.sbuData = tempSubs;
                 body.klasifikasiData = tempKlasifikasi;
