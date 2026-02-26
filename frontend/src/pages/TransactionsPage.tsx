@@ -154,8 +154,13 @@ export const TransactionsPage = () => {
                     </div>
                     <div>
                         <label className="block text-gray-700 dark:text-slate-300 font-medium mb-1">Biaya (Rp)</label>
-                        <input type="number" value={form.cost} onChange={(e) => setForm({ ...form, cost: Number(e.target.value) })}
-                            className="w-full px-5 py-3 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" min={0} required />
+                        <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 font-medium">Rp</span>
+                            <input type="text" inputMode="numeric"
+                                value={form.cost === 0 ? '' : new Intl.NumberFormat('id-ID').format(form.cost)}
+                                onChange={(e) => { const raw = e.target.value.replace(/\D/g, ''); setForm({ ...form, cost: raw === '' ? 0 : Number(raw) }); }}
+                                className="w-full pl-12 pr-5 py-3 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" placeholder="0" required />
+                        </div>
                     </div>
                     <div className="flex justify-end gap-2 mt-6">
                         <button type="button" onClick={() => setModalOpen(false)} className="px-6 py-3 rounded-xl font-semibold bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-500 transition">Batal</button>

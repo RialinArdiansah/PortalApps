@@ -3,7 +3,8 @@ import { useAppSelector, useAppDispatch } from '@/app/hooks';
 import { fetchCertificates } from '@/features/certificates/certificatesSlice';
 import { Modal } from '@/components/common/Modal';
 import { formatCurrency } from '@/utils/formatters';
-import type { SbuType, SbuData, KlasifikasiData, BiayaData } from '@/types';
+import type { SbuType, SbuData, KlasifikasiData, BiayaData, MenuConfig } from '@/types';
+import { DEFAULT_MENU_CONFIG } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -13,6 +14,7 @@ type TabName = 'klasifikasi' | 'kualifikasi' | 'biayaSetor' | 'biayaLainnya';
 interface BiayaEditForm {
     id: string | null;
     name: string;
+    kode: string;
     biaya: number;
     category: TabName;
 }
@@ -21,6 +23,7 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     sbuType: SbuType;
+    menuConfig?: MenuConfig | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -29,7 +32,7 @@ interface Props {
 const deepClone = <T,>(d: T): T => JSON.parse(JSON.stringify(d));
 const genId = () => `id-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
-const titleMap: Record<SbuType, string> = {
+const titleMap: Record<string, string> = {
     konstruksi: 'SBU Konstruksi',
     konsultan: 'SBU Konsultan',
     skk: 'SKK Konstruksi',
@@ -38,6 +41,9 @@ const titleMap: Record<SbuType, string> = {
     notaris: 'Notaris',
 };
 
+const KNOWN_TYPES = new Set(['konstruksi', 'konsultan', 'skk', 'smap', 'simpk', 'notaris']);
+const isKnownType = (t: string) => KNOWN_TYPES.has(t);
+
 // Shared input classes
 const inputCls = "w-full px-4 py-3 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition";
 const inputSmCls = "flex-grow px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition";
@@ -45,7 +51,7 @@ const inputSmCls = "flex-grow px-3 py-2 border border-gray-300 dark:border-slate
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
+export const SbuAdminModal = ({ isOpen, onClose, sbuType, menuConfig: menuConfigProp }: Props) => {
     const dispatch = useAppDispatch();
     const certs = useAppSelector((s) => s.certificates);
     const token = useAppSelector((s) => s.auth.token);
@@ -73,8 +79,11 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState('');
 
-    const hasAsosiasi = sbuType === 'konstruksi' || sbuType === 'skk';
-    const hasKlasifikasiTab = sbuType === 'konstruksi' || sbuType === 'konsultan' || sbuType === 'skk';
+    // Derive tab visibility from menuConfig (with fallback to defaults)
+    const mc = menuConfigProp ?? DEFAULT_MENU_CONFIG;
+    const hasAsosiasi = mc.asosiasi;
+    const hasKlasifikasiTab = mc.klasifikasi;
+    const isDynamic = !isKnownType(sbuType);
 
     const getDataSources = useCallback(() => {
         let subs: SbuData[] = [];
@@ -113,6 +122,18 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
                 bs = deepClone(certs.notarisBiayaSetorData);
                 bl = deepClone(certs.notarisBiayaLainnyaData);
                 break;
+            default: {
+                // Dynamic types: read from dynamicReferenceData
+                const dynRef = certs.dynamicReferenceData[sbuType];
+                if (dynRef) {
+                    subs = deepClone(dynRef.asosiasi);
+                    klas = deepClone(dynRef.klasifikasi);
+                    kual = deepClone(dynRef.kualifikasi);
+                    bs = deepClone(dynRef.biayaSetor);
+                    bl = deepClone(dynRef.biayaLainnya);
+                }
+                break;
+            }
         }
 
         return { subs, klas, kual, bs, bl };
@@ -153,7 +174,7 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
         setTempSubs(subs);
         setTempKlasifikasi(klas);
         setSelectedKlasifikasiId('');
-        setActiveTab(hasKlasifikasiTab ? 'klasifikasi' : (sbuType === 'notaris' ? 'kualifikasi' : 'biayaSetor'));
+        setActiveTab(hasKlasifikasiTab ? 'klasifikasi' : (isDynamic ? 'kualifikasi' : (sbuType === 'notaris' ? 'kualifikasi' : 'biayaSetor')));
         setNewSubName('');
         setNewKlasifikasiName('');
         setSubKlasifikasiText('');
@@ -260,25 +281,26 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
     const openBiayaForm = (cat: TabName, id: string | null = null) => {
         if (id) {
             const item = getBiayaList(cat).find((b) => b.id === id);
-            if (item) setBiayaEditForm({ id, name: item.name, biaya: item.biaya, category: cat });
+            if (item) setBiayaEditForm({ id, name: item.name, kode: item.kode || '', biaya: item.biaya, category: cat });
         } else {
             // For biayaSetor: auto-pick first kualifikasi name as default
             const defaultName = cat === 'biayaSetor' && tempKualifikasi.length > 0
                 ? tempKualifikasi[0].name : '';
-            setBiayaEditForm({ id: null, name: defaultName, biaya: 0, category: cat });
+            setBiayaEditForm({ id: null, name: defaultName, kode: '', biaya: 0, category: cat });
         }
     };
 
     const handleSaveBiaya = () => {
         if (!biayaEditForm) return;
-        const { id, name, biaya, category } = biayaEditForm;
+        const { id, name, kode, biaya, category } = biayaEditForm;
         const list = getBiayaList(category);
+        const kodeVal = kode?.trim() || undefined;
 
         if (id) {
-            setBiayaList(category, list.map((b) => b.id === id ? { ...b, name, biaya } : b));
+            setBiayaList(category, list.map((b) => b.id === id ? { ...b, name, kode: kodeVal, biaya } : b));
             showToast('Data diperbarui');
         } else {
-            setBiayaList(category, [...list, { id: genId(), name, biaya }]);
+            setBiayaList(category, [...list, { id: genId(), name, kode: kodeVal, biaya }]);
             showToast('Data ditambahkan');
         }
         setBiayaEditForm(null);
@@ -336,6 +358,13 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
                 body.kualifikasiData = tempKualifikasi;
                 body.biayaSetorData = tempBiayaSetor;
                 body.biayaLainnyaData = tempBiayaLainnya;
+            } else {
+                // Dynamic types: generic mapping
+                body.sbuData = tempSubs;
+                body.klasifikasiData = tempKlasifikasi;
+                body.kualifikasiData = tempKualifikasi;
+                body.biayaSetorData = tempBiayaSetor;
+                body.biayaLainnyaData = tempBiayaLainnya;
             }
 
             const res = await fetch('/api/certificates/reference-data', {
@@ -373,10 +402,18 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
     );
 
     // Biaya table
+    // Contextual biaya label: kualifikasi = partner cost, biayaSetor = kantor cost
+    const getBiayaLabel = (cat: TabName): string => {
+        if (cat === 'kualifikasi') return mc.biayaSetorLabel || 'Biaya Partner';
+        if (cat === 'biayaSetor') return 'Stor Kantor';
+        return 'Biaya';
+    };
+
     const BiayaTable = ({ cat, title }: { cat: TabName; title: string }) => {
         const list = getBiayaList(cat);
         const selectedSub = tempSubs.find((s) => s.id === selectedSubId);
         const needsSub = hasAsosiasi && !selectedSubId;
+        const biayaLabel = getBiayaLabel(cat);
 
         if (needsSub) {
             return <p className="text-center text-gray-500 dark:text-slate-400 py-6">Pilih Asosiasi terlebih dahulu untuk mengelola {title}.</p>;
@@ -386,7 +423,7 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
             <div>
                 <div className="flex justify-between items-center mb-3">
                     <p className="text-sm text-gray-500 dark:text-slate-400">
-                        Data {title} untuk <strong className="text-gray-700 dark:text-white">{selectedSub?.name || titleMap[sbuType]}</strong>
+                        Data {title} untuk <strong className="text-gray-700 dark:text-white">{selectedSub?.name || titleMap[sbuType] || sbuType}</strong>
                     </p>
                     <button
                         type="button"
@@ -400,19 +437,21 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
                         <thead className="bg-gray-50 dark:bg-slate-700/50">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Nama & Biaya</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Nama & {biayaLabel}</th>
+                                {mc.kodeField?.enabled && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">{mc.kodeField.label}</th>}
                                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
                             {list.length === 0 ? (
-                                <tr><td colSpan={2} className="text-center py-6 text-gray-400 dark:text-slate-500">Belum ada data</td></tr>
+                                <tr><td colSpan={mc.kodeField?.enabled ? 3 : 2} className="text-center py-6 text-gray-400 dark:text-slate-500">Belum ada data</td></tr>
                             ) : list.map((item) => (
                                 <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                                     <td className="px-4 py-3">
                                         <div className="font-medium text-gray-900 dark:text-white text-sm">{item.name}</div>
-                                        <div className="text-gray-500 dark:text-slate-400 text-xs">{formatCurrency(item.biaya)}</div>
+                                        <div className="text-gray-500 dark:text-slate-400 text-xs">{biayaLabel}: {formatCurrency(item.biaya)}</div>
                                     </td>
+                                    {mc.kodeField?.enabled && <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-sm">{item.kode || '—'}</td>}
                                     <td className="px-4 py-3 text-right space-x-3">
                                         <button onClick={() => openBiayaForm(cat, item.id)} className="text-primary-600 dark:text-indigo-400 hover:text-primary-800 dark:hover:text-indigo-300 text-sm font-medium">Edit</button>
                                         <button onClick={() => handleDeleteBiaya(cat, item.id)} className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm font-medium">Hapus</button>
@@ -428,16 +467,16 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
 
     const tabs = useMemo(() => {
         const t: { label: string; tab: TabName }[] = [];
-        if (hasKlasifikasiTab) t.push({ label: 'Klasifikasi', tab: 'klasifikasi' });
-        if (sbuType !== 'smap' && sbuType !== 'simpk') t.push({ label: sbuType === 'skk' ? 'Jenjang' : 'Kualifikasi', tab: 'kualifikasi' });
-        t.push({ label: 'Biaya Setor', tab: 'biayaSetor' });
-        if (sbuType !== 'smap' && sbuType !== 'simpk') t.push({ label: 'Biaya Lainnya', tab: 'biayaLainnya' });
+        if (mc.klasifikasi) t.push({ label: 'Klasifikasi', tab: 'klasifikasi' });
+        if (mc.kualifikasi) t.push({ label: mc.kualifikasiLabel || 'Kualifikasi', tab: 'kualifikasi' });
+        if (mc.biayaSetor) t.push({ label: 'Biaya Setor Kantor', tab: 'biayaSetor' });
+        if (mc.biayaLainnya) t.push({ label: 'Biaya Lainnya', tab: 'biayaLainnya' });
         return t;
-    }, [sbuType, hasKlasifikasiTab]);
+    }, [mc]);
 
     // Render
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Kelola Menu ${titleMap[sbuType]}`} maxWidth="max-w-3xl">
+        <Modal isOpen={isOpen} onClose={onClose} title={`Kelola Menu ${titleMap[sbuType] || sbuType}`} maxWidth="max-w-3xl">
             <div className="space-y-5">
                 {/* Toast */}
                 {toast && (
@@ -582,15 +621,35 @@ export const SbuAdminModal = ({ isOpen, onClose, sbuType }: Props) => {
                             </div>
                         )}
 
+                        {mc.kodeField?.enabled && (
+                            <div>
+                                <label className="block text-gray-600 dark:text-slate-400 text-sm mb-1">{mc.kodeField.label}</label>
+                                <input
+                                    type="text"
+                                    value={biayaEditForm.kode}
+                                    onChange={(e) => setBiayaEditForm({ ...biayaEditForm, kode: e.target.value })}
+                                    className={inputSmCls}
+                                    placeholder={`Masukkan ${mc.kodeField.label.toLowerCase()}...`}
+                                />
+                            </div>
+                        )}
+
                         <div>
-                            <label className="block text-gray-600 dark:text-slate-400 text-sm mb-1">Biaya Setor (Rp)</label>
-                            <input
-                                type="number"
-                                value={biayaEditForm.biaya}
-                                onChange={(e) => setBiayaEditForm({ ...biayaEditForm, biaya: Number(e.target.value) })}
-                                className={inputSmCls}
-                                min={0}
-                            />
+                            <label className="block text-gray-600 dark:text-slate-400 text-sm mb-1">{getBiayaLabel(biayaEditForm.category)} (Rp)</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 text-sm font-medium">Rp</span>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={biayaEditForm.biaya === 0 ? '' : new Intl.NumberFormat('id-ID').format(biayaEditForm.biaya)}
+                                    onChange={(e) => {
+                                        const raw = e.target.value.replace(/\D/g, '');
+                                        setBiayaEditForm({ ...biayaEditForm, biaya: raw === '' ? 0 : Number(raw) });
+                                    }}
+                                    className={inputSmCls + ' pl-10'}
+                                    placeholder="0"
+                                />
+                            </div>
                         </div>
                         <div className="flex justify-end gap-2">
                             <button type="button" onClick={() => setBiayaEditForm(null)} className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-500 transition">

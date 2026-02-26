@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import type { Certificate, BiayaData, SbuData, KlasifikasiData, AuthState } from '@/types';
+import type { Certificate, BiayaData, SbuData, KlasifikasiData, DynamicRefData, AuthState, MenuConfig } from '@/types';
 
 interface CertificatesState {
     list: Certificate[];
@@ -29,6 +29,8 @@ interface CertificatesState {
     notarisBiayaSetorData: BiayaData[];
     notarisKualifikasiData: BiayaData[];
     notarisBiayaLainnyaData: BiayaData[];
+    // Dynamic reference data for all types (including new ones)
+    dynamicReferenceData: Record<string, DynamicRefData>;
 }
 
 const initialState: CertificatesState = {
@@ -58,6 +60,7 @@ const initialState: CertificatesState = {
     notarisBiayaSetorData: [],
     notarisKualifikasiData: [],
     notarisBiayaLainnyaData: [],
+    dynamicReferenceData: {},
 };
 
 export const fetchCertificates = createAsyncThunk('certificates/fetch', async (_, { getState }) => {
@@ -69,7 +72,7 @@ export const fetchCertificates = createAsyncThunk('certificates/fetch', async (_
     return data.data;
 });
 
-export const createCertificate = createAsyncThunk('certificates/create', async (cert: { name: string; subMenus?: string[] }, { getState }) => {
+export const createCertificate = createAsyncThunk('certificates/create', async (cert: { name: string; subMenus?: string[]; menuConfig?: MenuConfig }, { getState }) => {
     const state = getState() as { auth: AuthState };
     const res = await fetch('/api/certificates', {
         method: 'POST',
@@ -80,7 +83,7 @@ export const createCertificate = createAsyncThunk('certificates/create', async (
     return data.data as Certificate;
 });
 
-export const updateCertificate = createAsyncThunk('certificates/update', async ({ id, ...cert }: Partial<Certificate> & { id: string }, { getState }) => {
+export const updateCertificate = createAsyncThunk('certificates/update', async ({ id, ...cert }: { id: string; name?: string; subMenus?: string[]; menuConfig?: MenuConfig }, { getState }) => {
     const state = getState() as { auth: AuthState };
     const res = await fetch(`/api/certificates/${id}`, {
         method: 'PUT',
@@ -134,6 +137,7 @@ const certificatesSlice = createSlice({
                 state.notarisBiayaSetorData = ref.notarisBiayaSetorData;
                 state.notarisKualifikasiData = ref.notarisKualifikasiData;
                 state.notarisBiayaLainnyaData = ref.notarisBiayaLainnyaData;
+                state.dynamicReferenceData = ref.dynamicReferenceData || {};
             })
             .addCase(fetchCertificates.rejected, (state, action) => {
                 state.status = 'failed';

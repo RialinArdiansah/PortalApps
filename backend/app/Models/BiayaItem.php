@@ -9,7 +9,7 @@ class BiayaItem extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['sbu_type_id', 'asosiasi_id', 'category', 'name', 'biaya'];
+    protected $fillable = ['sbu_type_id', 'asosiasi_id', 'category', 'name', 'kode', 'biaya'];
 
     public function sbuType()
     {

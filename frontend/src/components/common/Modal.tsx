@@ -24,7 +24,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' 
     return (
         <div
             ref={overlayRef}
-            className="fixed inset-0 bg-gray-900/70 dark:bg-black/80 backdrop-blur-sm overflow-y-auto h-full w-full flex items-center justify-center p-4 z-40"
+            className="fixed inset-0 bg-gray-900/70 dark:bg-black/80 backdrop-blur-sm overflow-y-auto h-full w-full flex items-start justify-center py-8 px-4 z-40"
             onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
         >
             <div className={`bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl shadow-2xl w-full ${maxWidth} relative animate-in border border-transparent dark:border-slate-700 transition-colors`}>

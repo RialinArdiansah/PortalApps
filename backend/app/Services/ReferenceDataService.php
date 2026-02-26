@@ -10,8 +10,13 @@ use Illuminate\Support\Facades\DB;
 
 class ReferenceDataService
 {
+    // The 6 original type slugs (static keys preserved for backward-compat)
+    private const KNOWN_SLUGS = ['konstruksi', 'konsultan', 'skk', 'smap', 'simpk', 'notaris'];
+
     /**
-     * Build the 22-key referenceData structure matching frontend exactly.
+     * Build the reference data structure:
+     * - 22 static keys for backward-compatibility with 6 original types
+     * - dynamicReferenceData: Record<slug, { asosiasi, klasifikasi, kualifikasi, biayaSetor, biayaLainnya }> for ALL types
      */
     public function getAllReferenceData(): array
     {
@@ -48,7 +53,7 @@ class ReferenceDataService
             ->when($asosiasiId, fn($q) => $q->where('asosiasi_id', $asosiasiId))
             ->when($asosiasiId === null && !in_array($category, ['kualifikasi', 'biaya_setor', 'biaya_lainnya']), fn($q) => $q->whereNull('asosiasi_id'))
             ->get()
-            ->map(fn($b) => ['id' => $b->id, 'name' => $b->name, 'biaya' => $b->biaya])
+            ->map(fn($b) => array_filter(['id' => $b->id, 'name' => $b->name, 'kode' => $b->kode, 'biaya' => $b->biaya], fn($v) => $v !== null))
             ->values()
             ->toArray();
 
@@ -56,7 +61,8 @@ class ReferenceDataService
         $p3sm = $konstruksi ? Asosiasi::where('sbu_type_id', $konstruksi->id)->where('name', 'P3SM')->first() : null;
         $gapeknas = $konstruksi ? Asosiasi::where('sbu_type_id', $konstruksi->id)->where('name', 'GAPEKNAS')->first() : null;
 
-        return [
+        // ─── Static 22-key structure (backward-compatible) ─────────────────
+        $staticData = [
             'sbuKonstruksiData' => $konstruksi ? $formatAsosiasi($konstruksi->id) : [],
             'konstruksiKlasifikasiData' => $konstruksi ? $formatKlasifikasi($konstruksi->id) : [],
             'p3smKualifikasiData' => $p3sm ? $formatBiaya($konstruksi->id, 'kualifikasi', $p3sm->id) : [],
@@ -81,6 +87,22 @@ class ReferenceDataService
             'notarisKualifikasiData' => $notaris ? $formatBiaya($notaris->id, 'kualifikasi') : [],
             'notarisBiayaLainnyaData' => $notaris ? $formatBiaya($notaris->id, 'biaya_lainnya') : [],
         ];
+
+        // ─── Dynamic structure for ALL types (including new ones) ──────────
+        $dynamicReferenceData = [];
+        $allSbuTypes = SbuType::all();
+
+        foreach ($allSbuTypes as $sbt) {
+            $dynamicReferenceData[$sbt->slug] = [
+                'asosiasi' => $formatAsosiasi($sbt->id),
+                'klasifikasi' => $formatKlasifikasi($sbt->id),
+                'kualifikasi' => $formatBiaya($sbt->id, 'kualifikasi'),
+                'biayaSetor' => $formatBiaya($sbt->id, 'biaya_setor'),
+                'biayaLainnya' => $formatBiaya($sbt->id, 'biaya_lainnya'),
+            ];
+        }
+
+        return array_merge($staticData, ['dynamicReferenceData' => $dynamicReferenceData]);
     }
 
     /**
@@ -92,7 +114,6 @@ class ReferenceDataService
             $sbuType = SbuType::where('slug', $sbuTypeSlug)->firstOrFail();
 
             // ─── STEP 1: Wipe all existing data for this sbu_type ─────────────────
-            // Delete BiayaItems first (they reference asosiasi, so must go before asosiasi)
             BiayaItem::where('sbu_type_id', $sbuType->id)->delete();
             Klasifikasi::where('sbu_type_id', $sbuType->id)->delete();
             Asosiasi::where('sbu_type_id', $sbuType->id)->delete();
@@ -143,6 +164,7 @@ class ReferenceDataService
                         'asosiasi_id' => $asosiasiId,
                         'category' => $category,
                         'name' => $item['name'],
+                        'kode' => $item['kode'] ?? null,
                         'biaya' => $item['biaya'] ?? 0,
                     ]);
                 }
@@ -183,7 +205,12 @@ class ReferenceDataService
                 'biayaSetorData' => ['biaya_setor', null],
                 'biayaLainnyaData' => ['biaya_lainnya', null],
             ],
-            default => [],
+            // Dynamic types: generic mapping with all 3 biaya categories
+            default => [
+                'kualifikasiData' => ['kualifikasi', null],
+                'biayaSetorData' => ['biaya_setor', null],
+                'biayaLainnyaData' => ['biaya_lainnya', null],
+            ],
         };
     }
 }

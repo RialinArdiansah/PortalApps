@@ -9,7 +9,14 @@ class SbuType extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['slug', 'name'];
+    protected $fillable = ['slug', 'name', 'menu_config'];
+
+    protected function casts(): array
+    {
+        return [
+            'menu_config' => 'array',
+        ];
+    }
 
     public function asosiasi()
     {

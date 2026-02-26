@@ -9,7 +9,7 @@ class Certificate extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['name', 'sub_menus'];
+    protected $fillable = ['name', 'sub_menus', 'sbu_type_slug'];
 
     protected function casts(): array
     {

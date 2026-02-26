@@ -18,11 +18,34 @@ export interface User {
     role: UserRole;
 }
 
+// --- Menu Config (per cert type) ---
+export interface MenuConfig {
+    asosiasi: boolean;
+    klasifikasi: boolean;
+    kualifikasi: boolean;
+    kualifikasiLabel: string;
+    biayaSetor: boolean;
+    biayaLainnya: boolean;
+    biayaSetorLabel?: string;
+    kodeField?: { enabled: boolean; label: string };
+}
+
+export const DEFAULT_MENU_CONFIG: MenuConfig = {
+    asosiasi: false,
+    klasifikasi: false,
+    kualifikasi: true,
+    kualifikasiLabel: 'Kualifikasi',
+    biayaSetor: true,
+    biayaLainnya: true,
+};
+
 // --- Certificate ---
 export interface Certificate {
     id: string;
     name: string;
     subMenus: string[];
+    sbuTypeSlug: string | null;
+    menuConfig: MenuConfig | null;
 }
 
 // --- Marketing ---
@@ -51,11 +74,24 @@ export interface KlasifikasiData {
 export interface BiayaData {
     id: string;
     name: string;
+    kode?: string;
     biaya: number;
 }
 
-// --- SBU Type Union ---
-export type SbuType = 'konstruksi' | 'skk' | 'konsultan' | 'smap' | 'simpk' | 'notaris';
+// --- SBU Type (string to support dynamic types) ---
+export type SbuType = string;
+
+// --- Known SBU Types (the 6 originals) ---
+export const KNOWN_SBU_TYPES = ['konstruksi', 'skk', 'konsultan', 'smap', 'simpk', 'notaris'] as const;
+
+// --- Dynamic Reference Data (per slug) ---
+export interface DynamicRefData {
+    asosiasi: SbuData[];
+    klasifikasi: KlasifikasiData[];
+    kualifikasi: BiayaData[];
+    biayaSetor: BiayaData[];
+    biayaLainnya: BiayaData[];
+}
 
 // --- Submission ---
 export interface Submission {
@@ -65,7 +101,7 @@ export interface Submission {
     inputDate: string; // YYYY-MM-DD
     submittedById: string;
     certificateType: string;
-    sbuType: SbuType;
+    sbuType: string;
     selectedSub: SbuData | null;
     selectedKlasifikasi: KlasifikasiData | null;
     selectedSubKlasifikasi: string | null;

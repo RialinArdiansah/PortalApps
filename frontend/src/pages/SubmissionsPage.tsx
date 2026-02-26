@@ -12,13 +12,22 @@ export const SubmissionsPage = () => {
     const { user } = useAppSelector((s) => s.auth);
     const { list, status, pagination } = useAppSelector((s) => s.submissions);
     const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [filterType, setFilterType] = useState('');
+    const [filterMarketing, setFilterMarketing] = useState('');
 
     useEffect(() => { dispatch(fetchSubmissions()); }, [dispatch]);
 
     const isAllView = user?.role === 'Super admin' || user?.role === 'admin' || user?.role === 'manager';
 
+    const uniqueTypes = useMemo(() => Array.from(new Set(list.map(s => s.certificateType))).sort(), [list]);
+    const uniqueMarketings = useMemo(() => Array.from(new Set(list.map(s => s.marketingName))).sort(), [list]);
+
     const filteredByUser = useMemo(() => {
-        const userFiltered = isAllView ? list : list.filter((s) => s.submittedById === user?.id);
+        let userFiltered = isAllView ? list : list.filter((s) => s.submittedById === user?.id);
+
+        if (filterType) userFiltered = userFiltered.filter(s => s.certificateType === filterType);
+        if (filterMarketing) userFiltered = userFiltered.filter(s => s.marketingName === filterMarketing);
+
         if (!pagination.searchTerm) return userFiltered;
         const term = pagination.searchTerm.toLowerCase();
         return userFiltered.filter((s) =>
@@ -28,9 +37,10 @@ export const SubmissionsPage = () => {
             (s.selectedSub?.name || '').toLowerCase().includes(term) ||
             (s.selectedKlasifikasi?.name || '').toLowerCase().includes(term) ||
             (s.selectedSubKlasifikasi || '').toLowerCase().includes(term) ||
-            (s.selectedKualifikasi?.name || '').toLowerCase().includes(term)
+            (s.selectedKualifikasi?.name || '').toLowerCase().includes(term) ||
+            (s.selectedKualifikasi?.kode || '').toLowerCase().includes(term)
         );
-    }, [list, isAllView, user, pagination.searchTerm]);
+    }, [list, isAllView, user, pagination.searchTerm, filterType, filterMarketing]);
 
     const totalItems = filteredByUser.length;
     const startIdx = (pagination.currentPage - 1) * pagination.itemsPerPage;
@@ -45,22 +55,42 @@ export const SubmissionsPage = () => {
 
     return (
         <div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white">{isAllView ? 'Data Input Pengguna' : 'Data Input Saya'}</h1>
-                    <p className="text-gray-500 dark:text-slate-400 mt-1">Riwayat data sertifikasi yang telah diinput</p>
-                </div>
-                <div className="flex gap-3 w-full sm:w-auto">
-                    <input
-                        type="text"
-                        placeholder="Cari..."
-                        value={pagination.searchTerm}
-                        onChange={(e) => dispatch(setSearchTerm(e.target.value))}
-                        className="px-4 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-800 dark:text-white rounded-xl text-sm flex-1 sm:flex-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:outline-none transition placeholder-gray-400 dark:placeholder-slate-500"
-                    />
+            <div className="flex flex-col mb-6 gap-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white">{isAllView ? 'Data Input Pengguna' : 'Data Input Saya'}</h1>
+                        <p className="text-gray-500 dark:text-slate-400 mt-1">Riwayat data sertifikasi yang telah diinput</p>
+                    </div>
                     <Link to="/submissions/new" className="bg-primary-600 dark:bg-indigo-600 text-white font-semibold px-5 py-2 rounded-xl hover:bg-primary-700 dark:hover:bg-indigo-700 transition shadow-md whitespace-nowrap">
                         + Input Baru
                     </Link>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                        type="text"
+                        placeholder="Cari data..."
+                        value={pagination.searchTerm}
+                        onChange={(e) => dispatch(setSearchTerm(e.target.value))}
+                        className="px-4 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-800 dark:text-white rounded-xl text-sm flex-1 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:outline-none transition placeholder-gray-400 dark:placeholder-slate-500"
+                    />
+                    <select
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-800 dark:text-white rounded-xl text-sm w-full sm:w-auto focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                    >
+                        <option value="">Semua Jenis</option>
+                        {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    {isAllView && (
+                        <select
+                            value={filterMarketing}
+                            onChange={(e) => setFilterMarketing(e.target.value)}
+                            className="px-4 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-800 dark:text-white rounded-xl text-sm w-full sm:w-auto focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                        >
+                            <option value="">Semua Marketing</option>
+                            {uniqueMarketings.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                    )}
                 </div>
             </div>
 
@@ -80,6 +110,7 @@ export const SubmissionsPage = () => {
                                     <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-slate-400 hidden lg:table-cell">Klasifikasi</th>
                                     <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-slate-400 hidden xl:table-cell">Sub Klasifikasi</th>
                                     <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-slate-400 hidden xl:table-cell">Kualifikasi</th>
+                                    <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-slate-400 hidden xl:table-cell">Kode/Keterangan</th>
                                     <th className="text-left py-3 px-4 font-semibold text-gray-600 dark:text-slate-400 hidden lg:table-cell">Tanggal</th>
                                     <th className="text-right py-3 px-4 font-semibold text-gray-600 dark:text-slate-400">Keuntungan</th>
                                     <th className="text-right py-3 px-4 font-semibold text-gray-600 dark:text-slate-400">Aksi</th>
@@ -96,6 +127,7 @@ export const SubmissionsPage = () => {
                                         <td className="py-3 px-4 text-gray-600 dark:text-slate-400 hidden lg:table-cell">{s.selectedKlasifikasi?.name || '-'}</td>
                                         <td className="py-3 px-4 text-gray-600 dark:text-slate-400 hidden xl:table-cell">{s.selectedSubKlasifikasi || '-'}</td>
                                         <td className="py-3 px-4 text-gray-600 dark:text-slate-400 hidden xl:table-cell">{s.selectedKualifikasi?.name || '-'}</td>
+                                        <td className="py-3 px-4 text-gray-600 dark:text-slate-400 hidden xl:table-cell">{s.selectedKualifikasi?.kode || '-'}</td>
                                         <td className="py-3 px-4 text-gray-600 dark:text-slate-400 hidden lg:table-cell">{formatDate(s.inputDate)}</td>
                                         <td className="py-3 px-4 text-right font-semibold text-green-700 dark:text-emerald-400">{formatCurrency(s.keuntungan)}</td>
                                         <td className="py-3 px-4 text-right">
@@ -104,7 +136,7 @@ export const SubmissionsPage = () => {
                                     </tr>
                                 ))}
                                 {paged.length === 0 && (
-                                    <tr><td colSpan={11} className="text-center py-8 text-gray-400 dark:text-slate-500">Belum ada data</td></tr>
+                                    <tr><td colSpan={12} className="text-center py-8 text-gray-400 dark:text-slate-500">Belum ada data</td></tr>
                                 )}
                             </tbody>
                         </table>

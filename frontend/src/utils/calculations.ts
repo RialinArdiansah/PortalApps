@@ -175,3 +175,100 @@ export const calculateMarketingRanking = (
         .map(([name, data]) => ({ name, ...data }))
         .sort((a, b) => b.count - a.count);
 };
+
+// =====================================================
+// Certificate Analytics
+// =====================================================
+
+/**
+ * Group submissions by certificate type for analytics
+ */
+export const groupByCertificateType = (
+    submissions: Submission[]
+): Array<{ name: string; count: number; revenue: number; keuntungan: number }> => {
+    const map = new Map<string, { count: number; revenue: number; keuntungan: number }>();
+
+    submissions.forEach((sub) => {
+        const name = sub.certificateType || 'Lainnya';
+        const existing = map.get(name) || { count: 0, revenue: 0, keuntungan: 0 };
+        existing.count += 1;
+        existing.revenue += sub.biayaSetorKantor || 0;
+        existing.keuntungan += sub.keuntungan || 0;
+        map.set(name, existing);
+    });
+
+    return Array.from(map.entries())
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.revenue - a.revenue);
+};
+
+/**
+ * Calculate monthly revenue vs expenses for composed chart
+ */
+export const calculateMonthlyRevenueVsExpenses = (
+    submissions: Submission[],
+    transactions: Transaction[]
+): Array<{ month: string; pemasukan: number; pengeluaran: number; keuntungan: number }> => {
+    const monthlyMap = new Map<string, { pemasukan: number; pengeluaran: number; keuntungan: number }>();
+
+    submissions.forEach((sub) => {
+        if (!sub.inputDate) return;
+        const date = new Date(sub.inputDate);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const existing = monthlyMap.get(key) || { pemasukan: 0, pengeluaran: 0, keuntungan: 0 };
+        existing.pemasukan += sub.biayaSetorKantor || 0;
+        existing.keuntungan += sub.keuntungan || 0;
+        monthlyMap.set(key, existing);
+    });
+
+    transactions.forEach((t) => {
+        if (!t.transactionDate || t.transactionType !== 'Keluar') return;
+        const date = new Date(t.transactionDate);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const existing = monthlyMap.get(key) || { pemasukan: 0, pengeluaran: 0, keuntungan: 0 };
+        existing.pengeluaran += t.cost || 0;
+        monthlyMap.set(key, existing);
+    });
+
+    return Array.from(monthlyMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, data]) => ({ month, ...data }));
+};
+
+/**
+ * Calculate financial KPIs
+ */
+export const calculateFinancialKPIs = (
+    submissions: Submission[],
+    transactions: Transaction[]
+): {
+    netMarginPct: number;
+    avgRevenuePerCert: number;
+    topRevenueSource: string;
+    totalCertTypes: number;
+    highestEarningType: string;
+    highestEarningRevenue: number;
+} => {
+    const totalRevenue = submissions.reduce((acc, s) => acc + (s.biayaSetorKantor || 0), 0);
+    const totalProfit = submissions.reduce((acc, s) => acc + (s.keuntungan || 0), 0);
+    const totalExpenses = transactions
+        .filter((t) => t.transactionType === 'Keluar')
+        .reduce((acc, t) => acc + (t.cost || 0), 0);
+
+    const netMarginPct = totalRevenue > 0 ? ((totalRevenue - totalExpenses) / totalRevenue) * 100 : 0;
+    const avgRevenuePerCert = submissions.length > 0 ? totalRevenue / submissions.length : 0;
+
+    // Group by cert type to find top revenue source and highest earning type
+    const typeRevenue = groupByCertificateType(submissions);
+    const topType = typeRevenue[0];
+
+    return {
+        netMarginPct: Math.round(netMarginPct * 10) / 10,
+        avgRevenuePerCert,
+        topRevenueSource: topType?.name || '-',
+        totalCertTypes: new Set(submissions.map((s) => s.certificateType).filter(Boolean)).size,
+        highestEarningType: topType?.name || '-',
+        highestEarningRevenue: topType?.revenue || 0,
+    };
+};
+
