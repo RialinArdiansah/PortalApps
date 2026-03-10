@@ -1,0 +1,292 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Portal Sertifikasi — Custom CSS with Gradient System
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Smooth Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+/* ── Smooth Transitions ──────────────────────────────────────────── */
+* { scroll-behavior: smooth; }
+
+/* ── Select Styling ──────────────────────────────────────────────── */
+select option { background: white; color: #1e293b; }
+.dark select option { background: #1e293b; color: #e2e8f0; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   GRADIENT DESIGN SYSTEM
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Mesh Gradient Background (Dark Mode) ────────────────────────── */
+.mesh-gradient-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    background:
+        radial-gradient(ellipse at 15% 20%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(30, 27, 75, 1) 0%, rgba(5, 4, 10, 1) 100%);
+    transition: opacity 0.5s ease;
+}
+.dark .mesh-gradient-bg { opacity: 1; }
+
+/* ── Floating Gradient Orbs (ambient depth effect) ───────────────── */
+.gradient-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+.dark .gradient-orb { opacity: 1; }
+.gradient-orb-1 {
+    top: -5%;
+    right: 10%;
+    width: 400px;
+    height: 400px;
+    background: rgba(99, 102, 241, 0.07);
+}
+.gradient-orb-2 {
+    bottom: 10%;
+    left: 20%;
+    width: 350px;
+    height: 350px;
+    background: rgba(139, 92, 246, 0.05);
+}
+.gradient-orb-3 {
+    top: 40%;
+    right: -5%;
+    width: 300px;
+    height: 300px;
+    background: rgba(6, 182, 212, 0.04);
+}
+
+/* ── Gradient Stat Cards ─────────────────────────────────────────── */
+.gradient-card {
+    position: relative;
+    border-radius: 1rem;
+    padding: 1px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.gradient-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+.dark .gradient-card:hover {
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Card gradient backgrounds */
+.gradient-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.85;
+    transition: opacity 0.3s ease;
+}
+.gradient-card:hover::before { opacity: 1; }
+
+.gradient-card-purple::before {
+    background: linear-gradient(135deg, #a855f7, #8b5cf6);
+}
+.gradient-card-blue::before {
+    background: linear-gradient(135deg, #6366f1, #06b6d4);
+}
+.gradient-card-emerald::before {
+    background: linear-gradient(135deg, #10b981, #14b8a6);
+}
+.gradient-card-amber::before {
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+.gradient-card-rose::before {
+    background: linear-gradient(135deg, #f43f5e, #ec4899);
+}
+
+.gradient-card-inner {
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: inherit;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: background 0.3s ease;
+}
+.dark .gradient-card-inner {
+    background: rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(16px);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+/* When hovered in dark mode, make glass slightly more transparent */
+.dark .gradient-card:hover .gradient-card-inner {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+/* Glow effect on cards in dark mode */
+.dark .gradient-card-purple {
+    box-shadow: 0 4px 30px rgba(168, 85, 247, 0.2);
+}
+.dark .gradient-card-blue {
+    box-shadow: 0 4px 30px rgba(99, 102, 241, 0.2);
+}
+.dark .gradient-card-emerald {
+    box-shadow: 0 4px 30px rgba(16, 185, 129, 0.2);
+}
+.dark .gradient-card-amber {
+    box-shadow: 0 4px 30px rgba(245, 158, 11, 0.2);
+}
+.dark .gradient-card-rose {
+    box-shadow: 0 4px 30px rgba(244, 63, 94, 0.2);
+}
+
+/* ── Gradient Buttons ────────────────────────────────────────────── */
+.btn-gradient-primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    font-weight: 600;
+    border-radius: 0.75rem;
+    padding: 0.625rem 1.5rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    border: none;
+}
+.btn-gradient-primary:hover {
+    background: linear-gradient(135deg, #818cf8, #a78bfa);
+    box-shadow: 0 6px 25px rgba(99, 102, 241, 0.45);
+    transform: translateY(-1px);
+}
+
+.btn-gradient-success {
+    background: linear-gradient(135deg, #10b981, #14b8a6);
+    color: white;
+    font-weight: 600;
+    border-radius: 0.75rem;
+    padding: 0.625rem 1.5rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    border: none;
+}
+.btn-gradient-success:hover {
+    background: linear-gradient(135deg, #34d399, #2dd4bf);
+    box-shadow: 0 6px 25px rgba(16, 185, 129, 0.45);
+    transform: translateY(-1px);
+}
+
+.btn-gradient-danger {
+    background: linear-gradient(135deg, #f43f5e, #ec4899);
+    color: white;
+    font-weight: 600;
+    border-radius: 0.75rem;
+    padding: 0.625rem 1.5rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(244, 63, 94, 0.3);
+    border: none;
+}
+.btn-gradient-danger:hover {
+    background: linear-gradient(135deg, #fb7185, #f472b6);
+    box-shadow: 0 6px 25px rgba(244, 63, 94, 0.45);
+    transform: translateY(-1px);
+}
+
+/* ── Glass Container ─────────────────────────────────────────────── */
+.glass-container {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 1rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+.dark .glass-container {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Glass Table ─────────────────────────────────────────────────── */
+.glass-table thead tr {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+.dark .glass-table thead tr {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.2);
+}
+.glass-table thead th {
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.dark .glass-table thead th {
+    color: rgba(165, 180, 252, 0.7);
+}
+
+.glass-table tbody tr {
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+}
+.dark .glass-table tbody tr {
+    border-bottom-color: rgba(255, 255, 255, 0.03);
+}
+.glass-table tbody tr:hover {
+    background: rgba(99, 102, 241, 0.04);
+}
+.dark .glass-table tbody tr:hover {
+    background: rgba(139, 92, 246, 0.08);
+}
+
+/* ── Gradient Section Divider ────────────────────────────────────── */
+.gradient-divider {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.3), transparent);
+    border: none;
+    margin: 1.5rem 0;
+}
+.dark .gradient-divider {
+    background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.2), transparent);
+}
+
+/* ── Gradient Badge / Pill ───────────────────────────────────────── */
+.badge-gradient {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    backdrop-filter: blur(4px);
+}
+
+/* ── Animated gradient border effect ─────────────────────────────── */
+@keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+.animated-gradient-border {
+    background: linear-gradient(270deg, #6366f1, #8b5cf6, #a855f7, #06b6d4, #10b981);
+    background-size: 300% 300%;
+    animation: gradient-shift 6s ease infinite;
+    padding: 1px;
+    border-radius: 1rem;
+}
+
+/* ── Page Title Gradient Text ────────────────────────────────────── */
+.gradient-text {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.dark .gradient-text {
+    background: linear-gradient(135deg, #a5b4fc, #c4b5fd, #d8b4fe);
+    -webkit-background-clip: text;
+    background-clip: text;
+}

@@ -1,0 +1,22 @@
+# ═══════════════════════════════════════════════════════════════════
+# Portal Sertifikasi — Git Ignore
+# ═══════════════════════════════════════════════════════════════════
+
+# Environment (contains secrets)
+.env
+
+# Storage / Logs
+storage/logs/*.log
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temp files
+*.tmp
